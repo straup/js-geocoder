@@ -1,0 +1,46 @@
+This is a simple wrapper JavaScript library to provide a single interface for a
+variety of third-party geocoding services.
+
+Additionally, you can specify multiple providers in a single request each of
+which will be tried until one returns a successful response.
+
+Sort of like this:
+
+	var query = '475 Sansome San Francisco CA';
+
+	var providers = ['google', 'placemaker', 'cloudmade', 'flickr', 'bing'];
+
+	var args = {
+		'providers' : providers,
+		'flickr_apikey' : 'YER_FLICKR_APIKEY',
+		'cloudmade_apikey' : 'YER_CLOUDMADE_APIKEY',
+	};
+
+	var geo = new info.aaronland.geo.Geocoder(args);
+	geo.geocode(query, function (lat, lon, zoom) { alert("WOOT"); }, function(err) { alert("FAIL"); });
+
+That's pretty much all the interface will ever look like. As of this writing it
+mostly works but it's also incomplete and there are probably bugs.
+
+Currently supported providers are:
+
+	* Bing (http://ecn.dev.virtualearth.net/mapcontrol/mapcontrol.ashx?v=6.2)
+
+	* Cloudmade (http://cloudmade.com/products/web-maps-lite)
+
+	* Flickr (http://github.com/straup/js-flickr-api/tree/master)
+
+	* Google (http://code.google.com/apis/maps/documentation/v3)
+
+	* Y! Placemaker (http://icant.co.uk/jsplacemaker/)
+
+Note that you will need to include the service-specific JavaScript libraries
+yourself.
+
+Soon to be supported include:
+
+	* Geocoder.us
+
+	* Geonames
+
+
