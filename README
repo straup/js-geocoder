@@ -17,7 +17,7 @@ Sort of like this:
 	};
 
 	var doThisOnSuccess = function(rsp){
-        	var div = document.getElementById('output');
+		var div = document.getElementById('output');
 		div.innerHTML = rsp.lat + ',' + rsp.lon + ',' + rsp.zoom;
 	};
 

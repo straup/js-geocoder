@@ -509,7 +509,7 @@ info.aaronland.geo.Geocoder.prototype._placemaker = function(query, doThisOnSucc
 
 info.aaronland.geo.Geocoder.prototype._geocoder_us = function(query, doThisOnSuccess, doThisIfNot){
 
-    this.error('geonames support not complete');
+    this.error('geocoder.us support not complete');
     return;
 
     window['_geocoderUSGeocodeComplete'] = function (rsp){
