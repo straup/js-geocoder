@@ -32,7 +32,7 @@ Sort of like this:
 If you have logging turned on, you'd see something like this:
 
 	[geocode] geocode w/ geocoder.us
-	[geocode] geocoder.us failed: geonames support not complete
+	[geocode] geocoder.us failed: geocoder.us support not complete
 	[geocode] geocoding failed, trying again w/ google
 	[geocode] geocode w/ google
 	[geocode] google failed: missing libraries
