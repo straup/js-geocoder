@@ -1,3 +1,94 @@
+/* ======================================================================
+    jsr.src.js
+   ====================================================================== */
+
+// jsr_class.js
+//
+// JSONscriptRequest -- a simple class for making HTTP requests
+// using dynamically generated script tags and JSON
+//
+// Author: Jason Levitt
+// Date: December 7th, 2005
+//
+// A SECURITY WARNING FROM DOUGLAS CROCKFORD:
+// "The dynamic <script> tag hack suffers from a problem. It allows a page 
+// to access data from any server in the web, which is really useful. 
+// Unfortunately, the data is returned in the form of a script. That script 
+// can deliver the data, but it runs with the same authority as scripts on 
+// the base page, so it is able to steal cookies or misuse the authorization 
+// of the user with the server. A rogue script can do destructive things to 
+// the relationship between the user and the base server."
+//
+// So, be extremely cautious in your use of this script.
+//
+//
+// Sample Usage:
+//
+// <script type="text/javascript" src="jsr_class.js"></script>
+// 
+// function callbackfunc(jsonData) {
+//      alert('Latitude = ' + jsonData.ResultSet.Result[0].Latitude + 
+//            '  Longitude = ' + jsonData.ResultSet.Result[0].Longitude);
+//      aObj.removeScriptTag();
+// }
+//
+// request = 'http://api.local.yahoo.com/MapsService/V1/geocode?appid=YahooDemo&
+//            output=json&callback=callbackfunc&location=78704';
+// aObj = new JSONscriptRequest(request);
+// aObj.buildScriptTag();
+// aObj.addScriptTag();
+//
+//
+
+
+// Constructor -- pass a REST request URL to the constructor
+//
+function JSONscriptRequest(fullUrl) {
+    // REST request path
+    this.fullUrl = fullUrl; 
+    // Keep IE from caching requests
+    this.noCacheIE = '&noCacheIE=' + (new Date()).getTime();
+    // Get the DOM location to put the script tag
+    this.headLoc = document.getElementsByTagName("head").item(0);
+    // Generate a unique script tag id
+    this.scriptId = 'JscriptId' + JSONscriptRequest.scriptCounter++;
+}
+
+// Static script ID counter
+JSONscriptRequest.scriptCounter = 1;
+
+// buildScriptTag method
+//
+JSONscriptRequest.prototype.buildScriptTag = function () {
+
+    // Create the script tag
+    this.scriptObj = document.createElement("script");
+    
+    // Add script object attributes
+    this.scriptObj.setAttribute("type", "text/javascript");
+    this.scriptObj.setAttribute("charset", "utf-8");
+    this.scriptObj.setAttribute("src", this.fullUrl + this.noCacheIE);
+    this.scriptObj.setAttribute("id", this.scriptId);
+}
+ 
+// removeScriptTag method
+// 
+JSONscriptRequest.prototype.removeScriptTag = function () {
+    // Destroy the script tag
+    this.headLoc.removeChild(this.scriptObj);  
+}
+
+// addScriptTag method
+//
+JSONscriptRequest.prototype.addScriptTag = function () {
+    // Create the script tag
+    this.headLoc.appendChild(this.scriptObj);
+}
+/* ======================================================================
+    geocoder.src.js
+   ====================================================================== */
+
+
 if (! info){
     var info = {};
 }
@@ -10,12 +101,32 @@ if (! info.aaronland.geo){
     info.aaronland.geo = {};
 }
 
+info.aaronland.geo.GeocoderResult = function(provider, query, lat, lon, zoom){
+    this.provider = provider;
+    this.query = query;
+    this.lat = lat;
+    this.lon = lon;
+    this.zoom = zoom;
+}
+
+info.aaronland.geo.GeocoderError = function(provider, query, errmsg){
+    this.provider = provider;
+    this.query = query;
+    this.message = errmsg;
+}
+
 info.aaronland.geo.Geocoder = function(args){
 
     this.args = args;
     this.providers = args['providers'];
 
     this.canhas_console = (typeof(console) == 'object') ? 1 : 0;
+
+    this.current_provider = null;
+    this.current_query = null;
+
+    this.on_success = null;
+    this.on_fail = null;
 };
 
 info.aaronland.geo.Geocoder.prototype.geocode = function(query, doThisOnSuccess, doThisIfNot, idx){
@@ -26,11 +137,14 @@ info.aaronland.geo.Geocoder.prototype.geocode = function(query, doThisOnSuccess,
 
     var provider = this.providers[ idx ];
 
+    this.current_provider = provider;
+    this.current_query = query;
+
     this.log("geocode w/ " + provider);
 
     var local_doThisIfNot = doThisIfNot;
 
-    if (idx < this.providers.length){
+    if ((idx < this.providers.length) && (idx != this.providers.length)){
 
 	var next_idx = idx + 1;
         var next_provider = this.providers[ next_idx ];
@@ -45,37 +159,50 @@ info.aaronland.geo.Geocoder.prototype.geocode = function(query, doThisOnSuccess,
         };
     }
 
+    // 
+
+    this.on_success = doThisOnSuccess;
+    this.on_fail = local_doThisIfNot;
+
     //
 
-    if (provider == 'google'){
-        this._google(query, doThisOnSuccess, local_doThisIfNot);
-        return;
-    }
-
-    else if (provider == 'flickr'){
-        this._flickr(query, doThisOnSuccess, local_doThisIfNot);
-        return;
-    }
-
-    else if (provider == 'bing'){
-        this._bing(query, doThisOnSuccess, local_doThisIfNot);
-        return;
-    }
-
-    else if (provider == 'placemaker'){
-        this._placemaker(query, doThisOnSuccess, local_doThisIfNot);
+    if (provider == 'bing'){
+        this._bing(query);
         return;
     }
 
     else if (provider == 'cloudmade'){
-        this._cloudmade(query, doThisOnSuccess, local_doThisIfNot);
+        this._cloudmade(query);
+        return;
+    }
+
+    else if (provider == 'flickr'){
+        this._flickr(query);
+        return;
+    }
+
+    else if (provider == 'geocoder.us'){
+        this._geocoder_us(query);
+        return;
+    }
+
+    else if (provider == 'geonames'){
+        this._geonames(query);
+        return;
+    }
+
+    else if (provider == 'google'){
+        this._google(query);
+        return;
+    }
+
+    else if (provider == 'placemaker'){
+        this._placemaker(query);
         return;
     }
     
     else {
-        this.log("unknown provider: " + provider);
-
-        doThisIfNot();
+        this.error('unknown provider');
         return;
     }
 };
@@ -85,9 +212,7 @@ info.aaronland.geo.Geocoder.prototype._google = function(query, doThisOnSuccess,
     // http://code.google.com/apis/maps/documentation/v3/services.html#GeocodingRequests
 
     if (typeof(google) != 'object'){
-        this.log("missing google libraries");
-
-        doThisIfNot();
+        this.error('missing libraries');
         return;
     }
 
@@ -95,17 +220,13 @@ info.aaronland.geo.Geocoder.prototype._google = function(query, doThisOnSuccess,
 
     var _geocodeComplete = function(results, status) {
 
-        _self.log("geocoding dispatch returned");
-
         if (status != google.maps.GeocoderStatus.OK){
-
-            doThisIfNot();
+            _self.error('server error');
             return;
         }
 
         if ((! results) || (! results.length)){
-
-            doThisIfNot();
+            _self.error('no results');
             return;
         }
         
@@ -113,8 +234,6 @@ info.aaronland.geo.Geocoder.prototype._google = function(query, doThisOnSuccess,
         lat = loc.location.lat();
         lon = loc.location.lng();
         type = loc.location_type;
-
-        _self.log("geocoded " + query + " to " + lat + "," + lon + " (" + type + ")");
 
         if (type == google.maps.GeocoderLocationType.ROOFTOP){
             zoom = 17;
@@ -132,7 +251,8 @@ info.aaronland.geo.Geocoder.prototype._google = function(query, doThisOnSuccess,
             zoom = 11;
         }
 
-        doThisOnSuccess(lat, lon, zoom);
+        _self.success(lat, lon, zoom);
+        return;
     };
 
     var goog = new google.maps.Geocoder();
@@ -147,7 +267,7 @@ info.aaronland.geo.Geocoder.prototype._bing = function(query, doThisOnSuccess, d
     // http://msdn.microsoft.com/en-us/library/cc161074.aspx
 
     if (typeof(VEMap) != 'function'){
-        doThisIfNot('bing libraries missing');
+        this.error('missing libraries');
         return;
     }
 
@@ -156,18 +276,11 @@ info.aaronland.geo.Geocoder.prototype._bing = function(query, doThisOnSuccess, d
     var _bingCallback = function(shapeLayer, findResults, places, moreResults, errorMsg){
 
         if (places == null){
-
-            _self.log("received (failed) response from bing: " + errorMsg);
-
-            doThisIfNot();
+            _self.error('no results: ' + errorMsg);
             return
         }
 
-        _self.log("received (successful) response from bing");
-
-        var loc = places[0].LatLong;
-
-        doThisOnSuccess(loc.Latitude, loc.Longitude);
+        _self.sucess(loc[0], loc[1]);
         return;
     };
 
@@ -202,16 +315,12 @@ info.aaronland.geo.Geocoder.prototype._bing = function(query, doThisOnSuccess, d
 info.aaronland.geo.Geocoder.prototype._flickr = function(query, doThisOnSuccess, doThisIfNot){
 
     if (typeof(info.aaronland.flickr) != 'object'){
-        this.log("missing flickr libraries");
-
-        doThisIfNot();
+        this.error('missing libraries');
         return;
     }
 
     if (! this.args['flickr_apikey']){
-        this.log("missing flickr api key");
-
-        doThisIfNot();
+        this.error("missing flickr api key");
         return;
     }
 
@@ -222,20 +331,16 @@ info.aaronland.geo.Geocoder.prototype._flickr = function(query, doThisOnSuccess,
     window['_flickrGeocodeComplete'] = function(rsp){
 
         if (rsp.stat == 'fail'){
-            _self.log("received (failed) response from flickr");
-            doThisIfNot(rsp);
+            _self.error("received (failed) response from flickr");
             return;
         }
 
         var count = rsp.places.total;
 
         if (! count){
-            _self.log("received (failed) response from flickr");
-            doThisIfNot(rsp);
+            _self.error("received (failed) response from flickr");
             return;
         }
-
-        _self.log("received (successful) response from flickr");
 
         if (count > 1){
             _self.log("geocoding returned " + count + " results, using the first...");
@@ -266,7 +371,7 @@ info.aaronland.geo.Geocoder.prototype._flickr = function(query, doThisOnSuccess,
             zoom = 3;
         }
 
-        doThisOnSuccess(lat, lon, zoom);
+        _self.success(lat, lon, zoom);
         return;
     };
 
@@ -293,11 +398,10 @@ info.aaronland.geo.Geocoder.prototype._flickr = function(query, doThisOnSuccess,
 
 info.aaronland.geo.Geocoder.prototype._geonames = function(query, doThisOnSuccess, doThisIfNot){
 
-    this.log('geonames support not complete');
-    doThisIfNot();
+    this.error('geonames support not complete');
     return;
 
-    this.log("query dispatched to " + geonames);
+    // var url = 'http://ws.geonames.org/searchJSON?q=' + encodeURIComponent(query);
 };
 
 info.aaronland.geo.Geocoder.prototype._cloudmade = function(query, doThisOnSuccess, doThisIfNot){
@@ -305,20 +409,17 @@ info.aaronland.geo.Geocoder.prototype._cloudmade = function(query, doThisOnSucce
     // http://developers.cloudmade.com/projects/web-maps-lite/examples/geocoding
 
     if (typeof(CM) != 'object'){
-        this.log('missing cloudmade libraries');
-        doThisIfNot();
+        this.error('missing cloudmade libraries');
         return;
     }
 
     if (typeof(CM.Geocoder) != 'function'){
-        this.log('missing cloudmade libraries');
-        doThisIfNot();
+        this.error('missing cloudmade libraries');
         return;
     }
     
     if (! this.args['cloudmade_apikey']){
-        this.log('missing cloudmade api key');
-        doThisIfNot();
+        this.error('missing cloudmade api key');
         return;
     }
 
@@ -327,19 +428,16 @@ info.aaronland.geo.Geocoder.prototype._cloudmade = function(query, doThisOnSucce
     var _geocodeComplete = function(rsp){
 
         if (! rsp.found){
-            _self.log("received (failed) response from cloudmade");
-            doThisIfNot();
+            _self.error("received (failed) response from cloudmade");
             return;
         }
-
-        _self.log("received (successful) response from cloudmade");
 
         // work out zoom level based on rsp.features[0].properties.place
 
         var loc = rsp.features[0].centroid.coordinates;
         var zoom = null;
 
-        doThisOnSuccess(loc[0], loc[1], null);
+        _self.success(loc[0], loc[1], null);
         return;
     };
 
@@ -354,14 +452,12 @@ info.aaronland.geo.Geocoder.prototype._placemaker = function(query, doThisOnSucc
     // http://icant.co.uk/jsplacemaker/
 
     if (typeof(Placemaker) != 'object'){
-        this.log('missing placemaker libraries');
-        doThisIfNot();
+        this.err('missing placemaker libraries');
         return;
     }
 
     if (! this.args['placemaker_apikey']){
-        this.log('missing placemaker api key');
-        doThisIfNot();
+        this.err('missing placemaker api key');
         return;
     }
 
@@ -369,10 +465,8 @@ info.aaronland.geo.Geocoder.prototype._placemaker = function(query, doThisOnSucc
 
     var _onMatch = function(rsp){
         
-        _self.log('placemaker dispatched returned');
-
         if (rsp.error){
-            doThisIfNot();
+            _self.error(rsp.error);
             return;
         }
 
@@ -403,7 +497,7 @@ info.aaronland.geo.Geocoder.prototype._placemaker = function(query, doThisOnSucc
                     break;
         }
 
-        doThisOnSuccess(lat, lon, zoom);
+        _self.success(lat, lon, zoom);
         return;
     };
 
@@ -414,7 +508,42 @@ info.aaronland.geo.Geocoder.prototype._placemaker = function(query, doThisOnSucc
 }
 
 info.aaronland.geo.Geocoder.prototype._geocoder_us = function(query, doThisOnSuccess, doThisIfNot){
-    // please to write me...
+
+    this.error('geonames support not complete');
+    return;
+
+    window['_geocoderUSGeocodeComplete'] = function (rsp){
+    };
+
+    var url = 'http://rpc.geocoder.us/service/json?jsoncallback=_geocoderUSGeocodeCallback';
+    url += '&address=' + encodeURIComponent(query);
+
+    jsr = new JSONscriptRequest(url); 
+
+    jsr.noCacheIE = '';
+    jsr.buildScriptTag(); 
+    jsr.addScriptTag();
+
+    this.log('query dispatched to geocoder.us');
+}
+
+info.aaronland.geo.Geocoder.prototype.success = function(lat, lon, zoom){
+
+    this.log(this.current_provider + ' returned OK');
+    var result = new info.aaronland.geo.GeocoderResult(this.current_provider, this.current_query, lat, lon, zoom);
+
+    this.on_success(result);
+    return;
+}
+
+info.aaronland.geo.Geocoder.prototype.error = function(msg){
+
+    this.log(this.current_provider + ' failed: ' + msg);
+
+    var error = new info.aaronland.geo.GeocoderError(this.current_provider, this.current_query, msg);
+
+    this.on_fail(error);
+    return;
 }
 
 info.aaronland.geo.Geocoder.prototype.log = function(msg){
