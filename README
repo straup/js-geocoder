@@ -8,7 +8,7 @@ Sort of like this:
 
 	var query = '475 Sansome San Francisco CA';
 
-	var providers = ['google', 'placemaker', 'cloudmade', 'flickr', 'bing'];
+	var providers = ['geocoder.us' , 'google', 'placemaker', 'cloudmade', 'bing'];
 
 	var args = {
 		'providers' : providers,
@@ -16,8 +16,30 @@ Sort of like this:
 		'cloudmade_apikey' : 'YER_CLOUDMADE_APIKEY',
 	};
 
+	var doThisOnSuccess = function(rsp){
+        	var div = document.getElementById('output');
+		div.innerHTML = rsp.lat + ',' + rsp.lon + ',' + rsp.zoom;
+	};
+
+	var doThisIfNot = function(rsp){
+		var div = document.getElementById('output');
+		div.innerHTML = rsp.provider + ' failed with error: ' + rsp.message;
+	};
+
 	var geo = new info.aaronland.geo.Geocoder(args);
-	geo.geocode(query, function (lat, lon, zoom) { alert("WOOT"); }, function(err) { alert("FAIL"); });
+	geo.geocode(query, doThisOnSuccess, doThisIfNot);
+
+If you have logging turned on, you'd see something like this:
+
+	[geocode] geocode w/ geocoder.us
+	[geocode] geocoder.us failed: geonames support not complete
+	[geocode] geocoding failed, trying again w/ google
+	[geocode] geocode w/ google
+	[geocode] google failed: missing libraries
+	[geocode] geocoding failed, trying again w/ placemaker
+	[geocode] geocode w/ placemaker
+	[geocode] query dispatched to placemaker
+	[geocode] placemaker returned OK
 
 That's pretty much all the interface will ever look like. As of this writing it
 mostly works but it's also incomplete and there are probably bugs.
