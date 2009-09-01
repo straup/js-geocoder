@@ -280,7 +280,10 @@ info.aaronland.geo.Geocoder.prototype._bing = function(){
             return
         }
 
-        _self.sucess(loc[0], loc[1]);
+        var loc = places[0].LatLong;
+        var zoom = 17;	// sudo, make me more better
+
+        _self.success(loc.Latitude, loc.Longitude, zoom);
         return;
     };
 
@@ -529,7 +532,7 @@ info.aaronland.geo.Geocoder.prototype._geocoder_us = function(){
 
 info.aaronland.geo.Geocoder.prototype.success = function(lat, lon, zoom){
 
-    this.log(this.current_provider + ' returned OK');
+    this.log(this.current_provider + ' returned OK: ' + lat + ',' + lon + ',' + zoom);
     var result = new info.aaronland.geo.GeocoderResult(this.current_provider, this.current_query, lat, lon, zoom);
 
     this.on_success(result);
