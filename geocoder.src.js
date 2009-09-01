@@ -77,37 +77,37 @@ info.aaronland.geo.Geocoder.prototype.geocode = function(query, doThisOnSuccess,
     //
 
     if (provider == 'bing'){
-        this._bing(query);
+        this._bing();
         return;
     }
 
     else if (provider == 'cloudmade'){
-        this._cloudmade(query);
+        this._cloudmade();
         return;
     }
 
     else if (provider == 'flickr'){
-        this._flickr(query);
+        this._flickr();
         return;
     }
 
     else if (provider == 'geocoder.us'){
-        this._geocoder_us(query);
+        this._geocoder_us();
         return;
     }
 
     else if (provider == 'geonames'){
-        this._geonames(query);
+        this._geonames();
         return;
     }
 
     else if (provider == 'google'){
-        this._google(query);
+        this._google();
         return;
     }
 
     else if (provider == 'placemaker'){
-        this._placemaker(query);
+        this._placemaker();
         return;
     }
     
@@ -117,7 +117,7 @@ info.aaronland.geo.Geocoder.prototype.geocode = function(query, doThisOnSuccess,
     }
 };
 
-info.aaronland.geo.Geocoder.prototype._google = function(query, doThisOnSuccess, doThisIfNot){
+info.aaronland.geo.Geocoder.prototype._google = function(){
 
     // http://code.google.com/apis/maps/documentation/v3/services.html#GeocodingRequests
 
@@ -166,13 +166,13 @@ info.aaronland.geo.Geocoder.prototype._google = function(query, doThisOnSuccess,
     };
 
     var goog = new google.maps.Geocoder();
-    goog.geocode({'address' : query}, _geocodeComplete);
+    goog.geocode({'address' : this.current_query}, _geocodeComplete);
 
     this.log("google geocoding request dispatched");
     return;
 };
 
-info.aaronland.geo.Geocoder.prototype._bing = function(query, doThisOnSuccess, doThisIfNot){
+info.aaronland.geo.Geocoder.prototype._bing = function(){
 
     // http://msdn.microsoft.com/en-us/library/cc161074.aspx
 
@@ -207,7 +207,7 @@ info.aaronland.geo.Geocoder.prototype._bing = function(query, doThisOnSuccess, d
     // the mind reels...
 
     bing.Find(null,    // what
-              query, // where
+              this.current_query, // where
               null,    // VEFindType (always VEFindType.Businesses)
               null,    // VEShapeLayer (base by default)
               null,    // start index for results (0 by default)
@@ -222,7 +222,7 @@ info.aaronland.geo.Geocoder.prototype._bing = function(query, doThisOnSuccess, d
     return;
 };
 
-info.aaronland.geo.Geocoder.prototype._flickr = function(query, doThisOnSuccess, doThisIfNot){
+info.aaronland.geo.Geocoder.prototype._flickr = function(){
 
     if (typeof(info.aaronland.flickr) != 'object'){
         this.error('missing libraries');
@@ -296,7 +296,7 @@ info.aaronland.geo.Geocoder.prototype._flickr = function(query, doThisOnSuccess,
     var method = 'flickr.places.find';
 
     var args = {
-        'query': query,
+        'query': this.current_query,
         'jsoncallback': '_flickrGeocodeComplete'
     };
 
@@ -306,15 +306,15 @@ info.aaronland.geo.Geocoder.prototype._flickr = function(query, doThisOnSuccess,
     return;
 };
 
-info.aaronland.geo.Geocoder.prototype._geonames = function(query, doThisOnSuccess, doThisIfNot){
+info.aaronland.geo.Geocoder.prototype._geonames = function(){
 
     this.error('geonames support not complete');
     return;
 
-    // var url = 'http://ws.geonames.org/searchJSON?q=' + encodeURIComponent(query);
+    // var url = 'http://ws.geonames.org/searchJSON?q=' + encodeURIComponent(this.current_query);
 };
 
-info.aaronland.geo.Geocoder.prototype._cloudmade = function(query, doThisOnSuccess, doThisIfNot){
+info.aaronland.geo.Geocoder.prototype._cloudmade = function(){
 
     // http://developers.cloudmade.com/projects/web-maps-lite/examples/geocoding
 
@@ -352,12 +352,12 @@ info.aaronland.geo.Geocoder.prototype._cloudmade = function(query, doThisOnSucce
     };
 
     var cm = new CM.Geocoder(this.args['cloudmade_apikey']);
-    cm.getLocations(query, _geocodeComplete);
+    cm.getLocations(this.current_query, _geocodeComplete);
 
     this.log("query dispatched to cloudmade");
 };
 
-info.aaronland.geo.Geocoder.prototype._placemaker = function(query, doThisOnSuccess, doThisIfNot){
+info.aaronland.geo.Geocoder.prototype._placemaker = function(){
 
     // http://icant.co.uk/jsplacemaker/
 
@@ -412,12 +412,12 @@ info.aaronland.geo.Geocoder.prototype._placemaker = function(query, doThisOnSucc
     };
 
     Placemaker.config.appID = this.args['placemaker_apikey'];
-    Placemaker.getPlaces(query, _onMatch, 'en-us');
+    Placemaker.getPlaces(this.current_query, _onMatch, 'en-us');
 
     this.log('query dispatched to placemaker');
 }
 
-info.aaronland.geo.Geocoder.prototype._geocoder_us = function(query, doThisOnSuccess, doThisIfNot){
+info.aaronland.geo.Geocoder.prototype._geocoder_us = function(){
 
     this.error('geocoder.us support not complete');
     return;
@@ -426,7 +426,7 @@ info.aaronland.geo.Geocoder.prototype._geocoder_us = function(query, doThisOnSuc
     };
 
     var url = 'http://rpc.geocoder.us/service/json?jsoncallback=_geocoderUSGeocodeCallback';
-    url += '&address=' + encodeURIComponent(query);
+    url += '&address=' + encodeURIComponent(this.current_query);
 
     jsr = new JSONscriptRequest(url); 
 
@@ -462,7 +462,7 @@ info.aaronland.geo.Geocoder.prototype.log = function(msg){
         return;
     }
 
-    console.log("[geocode] " + msg);
+    console.log("[geocoder] " + msg);
 };
 
 // -*-java-*-
