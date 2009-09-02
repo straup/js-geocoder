@@ -2,6 +2,7 @@
     geocoder.src.js
    ====================================================================== */
 
+// http://github.com/straup/js-geocoder/tree/master
 
 if (! info){
     var info = {};
@@ -29,9 +30,57 @@ info.aaronland.geo.GeocoderError = function(provider, query, errmsg){
     this.message = errmsg;
 }
 
+info.aaronland.geo.GeocoderCapabilities = function(args){
+
+    // to do: read args and check for keys, etc.
+    // to do: build a default (ordered) set of providers based on capabilities
+    // that can be used if the user does not pass their own list
+
+    this.has_google = 0;
+    this.has_bing = 0;
+    this.has_cloudmade = 0;
+    this.has_flickr = 0;
+    this.has_placemaker = 0;
+    this.has_geonames = 0;
+    this.has_geocoder_us = 0;
+
+    this.can_geocode = 0;
+    this.providers = [];
+
+    if (typeof(google) == 'object'){
+        this.has_google = 1;
+        this.can_geocode = 1;
+    }
+
+    if (typeof(VEMap) == 'function'){
+        this.has_bing = 1;
+        this.can_geocode = 1;
+    }
+
+    if (typeof(info.aaronland.flickr) == 'object'){
+        this.has_flickr = 1;
+        this.can_geocode = 1;
+    }
+
+    if ((typeof(CM) == 'object') && (typeof(CM.Geocoder) == 'function')){
+        this.has_cloudmade = 1;
+        this.can_geocode = 1;
+    }
+
+    if (typeof(Placemaker) == 'object'){
+        this.has_placemaker = 1;
+        this.can_geocode = 1;
+    }
+
+}
+
 info.aaronland.geo.Geocoder = function(args){
 
     this.args = args;
+
+    this.capabilities = new info.aaronland.geo.GeocoderCapabilities(args);
+
+    // to do: if ! args['providers'] read from capabilties (see above)
     this.providers = args['providers'];
 
     this.canhas_console = (typeof(console) == 'object') ? 1 : 0;
@@ -125,7 +174,7 @@ info.aaronland.geo.Geocoder.prototype._google = function(){
 
     // http://code.google.com/apis/maps/documentation/v3/services.html#GeocodingRequests
 
-    if (typeof(google) != 'object'){
+    if (! this.capabilities.has_google){
         this.error('missing libraries');
         return;
     }
@@ -180,7 +229,7 @@ info.aaronland.geo.Geocoder.prototype._bing = function(){
 
     // http://msdn.microsoft.com/en-us/library/cc161074.aspx
 
-    if (typeof(VEMap) != 'function'){
+    if (! this.capabilities.has_bing){
         this.error('missing libraries');
         return;
     }
@@ -231,8 +280,8 @@ info.aaronland.geo.Geocoder.prototype._bing = function(){
 
 info.aaronland.geo.Geocoder.prototype._flickr = function(){
 
-    if (typeof(info.aaronland.flickr) != 'object'){
-        this.error('missing libraries');
+    if (! this.capabilities.has_flickr){
+        this.error('missing flickr libraries');
         return;
     }
 
@@ -325,12 +374,7 @@ info.aaronland.geo.Geocoder.prototype._cloudmade = function(){
 
     // http://developers.cloudmade.com/projects/web-maps-lite/examples/geocoding
 
-    if (typeof(CM) != 'object'){
-        this.error('missing cloudmade libraries');
-        return;
-    }
-
-    if (typeof(CM.Geocoder) != 'function'){
+    if (! this.capabilities.has_cloudmade){
         this.error('missing cloudmade libraries');
         return;
     }
@@ -368,7 +412,7 @@ info.aaronland.geo.Geocoder.prototype._placemaker = function(){
 
     // http://icant.co.uk/jsplacemaker/
 
-    if (typeof(Placemaker) != 'object'){
+    if (! this.capabilities.has_placemaker){
         this.err('missing placemaker libraries');
         return;
     }
