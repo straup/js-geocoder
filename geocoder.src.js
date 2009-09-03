@@ -28,7 +28,6 @@ info.aaronland.geo.GeocoderError = function(provider, query, errmsg){
 
 info.aaronland.geo.GeocoderCapabilities = function(args){
 
-    // to do: read args and check for keys, etc.
     // to do: build a default (ordered) set of providers based on capabilities
     // that can be used if the user does not pass their own list
 
@@ -43,29 +42,70 @@ info.aaronland.geo.GeocoderCapabilities = function(args){
     this.can_geocode = 0;
     this.providers = [];
 
+    // google
+
     if (typeof(google) == 'object'){
         this.has_google = 1;
-        this.can_geocode = 1;
+        this.can_geocode += 1;
+
+        this.providers.push('google');
     }
 
-    if (typeof(VEMap) == 'function'){
-        this.has_bing = 1;
-        this.can_geocode = 1;
-    }
-
-    if (typeof(info.aaronland.flickr) == 'object'){
-        this.has_flickr = 1;
-        this.can_geocode = 1;
-    }
+    // cloudmade
 
     if ((typeof(CM) == 'object') && (typeof(CM.Geocoder) == 'function')){
         this.has_cloudmade = 1;
-        this.can_geocode = 1;
+        this.can_geocode += 1;
+        
+        if ((args) && (! args['cloudmade_apikey'])){
+            this.has_cloudmade = 0;
+            this.can_geocode -= 1;
+        }
+
+        else {
+            this.providers.push('cloudmade');
+        }
     }
+
+    // flickr
+
+    if (typeof(info.aaronland.flickr) == 'object'){
+        this.has_flickr = 1;
+        this.can_geocode += 1;
+
+        if ((args) && (! args['flickr_apikey'])){
+            this.has_flickr = 0;
+            this.can_geocode -= 1;
+        }
+
+        else {
+            this.providers.push('flickr');
+        }
+    }
+
+    // placemaker
 
     if (typeof(Placemaker) == 'object'){
         this.has_placemaker = 1;
-        this.can_geocode = 1;
+        this.can_geocode += 1;
+
+        if ((args) && (! args['placemaker_apikey'])){
+            this.has_placemaker = 0;
+            this.can_geocode -= 1;        
+        }
+
+        else {
+            this.providers.push('placemaker');
+        }
+    }
+
+    // bing
+
+    if (typeof(VEMap) == 'function'){
+        this.has_bing = 1;
+        this.can_geocode += 1;
+
+        this.providers.push('bing');
     }
 
 }
@@ -75,11 +115,15 @@ info.aaronland.geo.Geocoder = function(args){
     this.args = args;
 
     this.capabilities = new info.aaronland.geo.GeocoderCapabilities(args);
+    this.providers = this.capabilities.providers;
 
-    // to do: if ! args['providers'] read from capabilties (see above)
-    this.providers = args['providers'];
+    if (args['providers']){
+        this.providers = args['providers'];
+    }
 
     this.canhas_console = (typeof(console) == 'object') ? 1 : 0;
+
+    this.timer_geocode = null;
 
     this.current_provider = null;
     this.current_query = null;
@@ -90,80 +134,91 @@ info.aaronland.geo.Geocoder = function(args){
 
 info.aaronland.geo.Geocoder.prototype.geocode = function(query, doThisOnSuccess, doThisIfNot, idx){
 
+    if (this.timer_geocode) {
+        this.log("terminating previously geocoding operation");
+
+        clearTimeout(this.timer_geocode);
+        this.timer_geocode = null;
+    }
+
     if (typeof(idx) == 'undefined'){
         idx = 0;
     }
 
-    var provider = this.providers[ idx ];
+    var delay = (idx == 0) ? 1500 : 0;
 
-    this.current_provider = provider;
-    this.current_query = query;
+    var _self = this;
 
-    this.log("geocode w/ " + provider);
-
-    var local_doThisIfNot = doThisIfNot;
-
-    if ((idx < this.providers.length) && (idx != this.providers.length)){
-
-	var next_idx = idx + 1;
-        var next_provider = this.providers[ next_idx ];
-
-        var _self = this;
+    this.timer_geocode = setTimeout(function(){
+                        
+            var provider = _self.providers[ idx ];
+        
+            _self.current_provider = provider;
+            _self.current_query = query;
             
-        local_doThisIfNot = function(){
+            _self.log("geocode w/ " + provider);
+            
+            var local_doThisIfNot = doThisIfNot;
+            
+            if ((idx < _self.providers.length) && (idx != _self.providers.length)){
+                
+                var next_idx = idx + 1;
+                var next_provider = _self.providers[ next_idx ];               
+                
+                local_doThisIfNot = function(){
+                    
+                    _self.log("geocoding failed, trying again w/ " + next_provider);
+                    _self.geocode(query, doThisOnSuccess, doThisIfNot, next_idx);
+                    return;
+                };
+            }
+            
+            _self.on_success = doThisOnSuccess;
+            _self.on_fail = local_doThisIfNot;
+            
+            if (provider == 'bing'){
+                _self._bing();
+                return;
+            }
+            
+            else if (provider == 'cloudmade'){
+                _self._cloudmade();
+                return;
+            }
+            
+            else if (provider == 'flickr'){
+                _self._flickr();
+                return;
+            }
+            
+            else if (provider == 'geocoder.us'){
+                _self._geocoder_us();
+                return;
+            }
+            
+            else if (provider == 'geonames'){
+                _self._geonames();
+                return;
+            }
+            
+            else if (provider == 'google'){
+                _self._google();
+                return;
+            }
+            
+            else if (provider == 'placemaker'){
+                _self._placemaker();
+                return;
+            }
+            
+            else {
+                _self.error('unknown provider');
+                return;
+            }
+        }, delay);
 
-            _self.log("geocoding failed, trying again w/ " + next_provider);
-            _self.geocode(query, doThisOnSuccess, doThisIfNot, next_idx);
-            return;
-        };
-    }
-
-    // 
-
-    this.on_success = doThisOnSuccess;
-    this.on_fail = local_doThisIfNot;
-
-    //
-
-    if (provider == 'bing'){
-        this._bing();
-        return;
-    }
-
-    else if (provider == 'cloudmade'){
-        this._cloudmade();
-        return;
-    }
-
-    else if (provider == 'flickr'){
-        this._flickr();
-        return;
-    }
-
-    else if (provider == 'geocoder.us'){
-        this._geocoder_us();
-        return;
-    }
-
-    else if (provider == 'geonames'){
-        this._geonames();
-        return;
-    }
-
-    else if (provider == 'google'){
-        this._google();
-        return;
-    }
-
-    else if (provider == 'placemaker'){
-        this._placemaker();
-        return;
-    }
-    
-    else {
-        this.error('unknown provider');
-        return;
-    }
+    this.log("query for '" + query + "' will be dispatched in " + delay + "ms");
+    return;
 };
 
 info.aaronland.geo.Geocoder.prototype._google = function(){
@@ -277,12 +332,7 @@ info.aaronland.geo.Geocoder.prototype._bing = function(){
 info.aaronland.geo.Geocoder.prototype._flickr = function(){
 
     if (! this.capabilities.has_flickr){
-        this.error('missing flickr libraries');
-        return;
-    }
-
-    if (! this.args['flickr_apikey']){
-        this.error("missing flickr api key");
+        this.error('missing flickr libraries or api key');
         return;
     }
 
@@ -371,12 +421,7 @@ info.aaronland.geo.Geocoder.prototype._cloudmade = function(){
     // http://developers.cloudmade.com/projects/web-maps-lite/examples/geocoding
 
     if (! this.capabilities.has_cloudmade){
-        this.error('missing cloudmade libraries');
-        return;
-    }
-    
-    if (! this.args['cloudmade_apikey']){
-        this.error('missing cloudmade api key');
+        this.error('missing cloudmade libraries or api key');
         return;
     }
 
@@ -409,12 +454,7 @@ info.aaronland.geo.Geocoder.prototype._placemaker = function(){
     // http://icant.co.uk/jsplacemaker/
 
     if (! this.capabilities.has_placemaker){
-        this.err('missing placemaker libraries');
-        return;
-    }
-
-    if (! this.args['placemaker_apikey']){
-        this.err('missing placemaker api key');
+        this.err('missing placemaker libraries or api key');
         return;
     }
 
@@ -504,6 +544,10 @@ info.aaronland.geo.Geocoder.prototype.error = function(msg){
 }
 
 info.aaronland.geo.Geocoder.prototype.log = function(msg){
+
+    if (! this.args['enable_logging']){
+        return;
+    }
 
     if (! this.canhas_console){
         return;
